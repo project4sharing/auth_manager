@@ -1,10 +1,7 @@
 #!/usr/bin/env bash
 #
-# Step 1: Deploy the mock OAuth server + dummy API to Cloud Run.
+# Step 1: Deploy the mock OAuth server + dummy API to Cloud Run function (gen2).
 #
-# The resulting *.run.app URL is hosted on Google infrastructure, so the
-# Agent Identity auth manager and Agent Engine can reach it without any
-# egress to the public internet from your VPC.
 #
 set -euo pipefail
 
@@ -20,40 +17,30 @@ export DEMO_CLIENT_SECRET="${DEMO_CLIENT_SECRET:-$(openssl rand -hex 16)}"
 export TOKEN_SIGNING_KEY="${TOKEN_SIGNING_KEY:-$(openssl rand -hex 32)}"
 # --------------------------------------------------------------------------
 
-echo "Deploying ${SERVICE_NAME} to Cloud Run in ${PROJECT_ID}/${REGION}..."
+gcloud services enable cloudfunctions.googleapis.com run.googleapis.com \
+  cloudbuild.googleapis.com --project="${PROJECT_ID}"
 
-gcloud run deploy "${SERVICE_NAME}" \
-  --project="${PROJECT_ID}" \
-  --region="${REGION}" \
-  --source="$(dirname "$0")/../mock-oauth-service" \
-  --allow-unauthenticated \
-  --set-env-vars="DEMO_CLIENT_ID=${DEMO_CLIENT_ID},DEMO_CLIENT_SECRET=${DEMO_CLIENT_SECRET},TOKEN_SIGNING_KEY=${TOKEN_SIGNING_KEY}"
+echo "Deploying ${SERVICE_NAME} Cloud run function in ${PROJECT_ID}/${REGION}..."
 
-SERVICE_URL=$(gcloud run services describe "${SERVICE_NAME}" \
-  --project="${PROJECT_ID}" --region="${REGION}" \
-  --format='value(status.url)')
+gcloud functions deploy "mock-oauth-service" --project="${PROJECT_ID}" --region="${REGION}" --gen2 --runtime=python312 --source="./mock-oauth-function" --entry-point=app --trigger-http --allow-unauthenticated --set-env-vars="DEMO_CLIENT_ID=${DEMO_CLIENT_ID},DEMO_CLIENT_SECRET=${DEMO_CLIENT_SECRET},TOKEN_SIGNING_KEY=${TOKEN_SIGNING_KEY}"
+
+FUNCTION_URL=$(gcloud functions describe "${FUNCTION_NAME}" \
+  --project="${PROJECT_ID}" --region="${REGION}" --gen2 \
+  --format='value(serviceConfig.uri)')
 
 echo ""
 echo "=========================================================="
-echo "Mock OAuth service deployed."
+echo "Function deployed."
 echo ""
-echo "  Service URL:    ${SERVICE_URL}"
-echo "  Token endpoint: ${SERVICE_URL}/token"
-echo "  Resource API:   ${SERVICE_URL}/api/orders"
+echo "  Base URL:       ${FUNCTION_URL}"
+echo "  Token endpoint: ${FUNCTION_URL}/token      <- use in auth provider"
+echo "  Resource API:   ${FUNCTION_URL}/api/orders <- use as ORDERS_API_BASE_URL base"
 echo "  Client ID:      ${DEMO_CLIENT_ID}"
 echo "  Client secret:  ${DEMO_CLIENT_SECRET}"
 echo ""
-echo "Smoke test (run these now to verify before wiring up the agent):"
+echo "Smoke test:"
+echo "  python3 $(dirname "$0")/smoke_test.py ${FUNCTION_URL} ${DEMO_CLIENT_ID} ${DEMO_CLIENT_SECRET}"
 echo ""
-echo "  # 1) Get a token"
-echo "  curl -s -X POST ${SERVICE_URL}/token \\"
-echo "    -d grant_type=client_credentials \\"
-echo "    -d client_id=${DEMO_CLIENT_ID} \\"
-echo "    -d client_secret=${DEMO_CLIENT_SECRET}"
-echo ""
-echo "  # 2) Call the protected API with the returned access_token"
-echo "  curl -s ${SERVICE_URL}/api/orders -H 'Authorization: Bearer <ACCESS_TOKEN>'"
-echo ""
-echo "  # 3) Confirm it rejects unauthenticated calls (expect 401)"
-echo "  curl -s -o /dev/null -w '%{http_code}\n' ${SERVICE_URL}/api/orders"
+echo "In agent/.env set:"
+echo "  ORDERS_API_BASE_URL=${FUNCTION_URL}"
 echo "=========================================================="
