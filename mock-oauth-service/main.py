@@ -27,7 +27,7 @@ import functions_framework
 from flask import Request, jsonify
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("mock-oauth-fn")
+logger = logging.getLogger("mock-oauth-service")
 
 CLIENT_ID = os.environ.get("DEMO_CLIENT_ID", "demo-client")
 CLIENT_SECRET = os.environ.get("DEMO_CLIENT_SECRET", "demo-secret")
