@@ -14,42 +14,41 @@
 #
 set -euo pipefail
 
+
+ENV_AGENT_FILE="../agent/demo_2lo_agent/.env"
+ENV_OAUTH_SVC_FILE="../mock-oauth-service/.env"
+
+set -a
+source "$ENV_AGENT_FILE"
+source "$ENV_OAUTH_SVC_FILE"
+set +a
 # ----------------------------- EDIT THESE ---------------------------------
-export PROJECT_ID="${PROJECT_ID:-your-project-id}"
-export LOCATION="${LOCATION:-us-central1}"
-export AUTH_PROVIDER_NAME="${AUTH_PROVIDER_NAME:-mock-orders-2lo}"
-
-# From the output of 1_deploy_mock_oauth.sh:
-export TOKEN_ENDPOINT="${TOKEN_ENDPOINT:-https://mock-2lo-oauth-XXXX-uc.a.run.app/token}"
-export DEMO_CLIENT_ID="${DEMO_CLIENT_ID:-demo-client}"
-export DEMO_CLIENT_SECRET="${DEMO_CLIENT_SECRET:-demo-secret}"
-
 # The identity that will USE the auth provider (your agent's identity, or
 # your own user account when testing locally with adk web):
 export AGENT_MEMBER="${AGENT_MEMBER:-user:you@example.com}"
 # --------------------------------------------------------------------------
 
 echo "Enabling the Agent Identity API..."
-gcloud services enable agentidentity.googleapis.com --project="${PROJECT_ID}" || \
+gcloud services enable agentidentity.googleapis.com --project="${GOOGLE_CLOUD_PROJECT}" || \
   echo "If this API id is not found, enable the API shown in the current 2LO docs."
 
-echo "Creating 2LO auth provider ${AUTH_PROVIDER_NAME}..."
-gcloud alpha agent-identity authProviders create "${AUTH_PROVIDER_NAME}" \
-  --project="${PROJECT_ID}" \
-  --location="${LOCATION}" \
+echo "Creating 2LO auth provider ${MOCK_2LO_AUTH_PROVIDER}..."
+gcloud alpha agent-identity auth-providers create "${MOCK_2LO_AUTH_PROVIDER}" \
+  --project="${GOOGLE_CLOUD_PROJECT}" \
+  --location="${GOOGLE_CLOUD_LOCATION}" \
   --two-legged-oauth-client-id="${DEMO_CLIENT_ID}" \
   --two-legged-oauth-client-secret="${DEMO_CLIENT_SECRET}" \
-  --two-legged-oauth-token-endpoint="${TOKEN_ENDPOINT}"
+  --two-legged-oauth-token-endpoint="${MOCK_2LO_BASE_URL}/token"
 
 echo "Verifying provider is ENABLED..."
-gcloud alpha agent-identity authProviders list \
-  --project="${PROJECT_ID}" \
-  --location="${LOCATION}"
+gcloud alpha agent-identity auth-providers list \
+  --project="${GOOGLE_CLOUD_PROJECT}" \
+  --location="${GOOGLE_CLOUD_LOCATION}"
 
 echo "Granting ${AGENT_MEMBER} permission to use the auth provider..."
-gcloud alpha agent-identity authProviders add-iam-policy-binding "${AUTH_PROVIDER_NAME}" \
-  --project="${PROJECT_ID}" \
-  --location="${LOCATION}" \
+gcloud alpha agent-identity authProviders add-iam-policy-binding "${MOCK_2LO_AUTH_PROVIDER}" \
+  --project="${GOOGLE_CLOUD_PROJECT}" \
+  --location="${GOOGLE_CLOUD_LOCATION}" \
   --role="roles/iamconnectors.user" \
   --member="${AGENT_MEMBER}"
 
