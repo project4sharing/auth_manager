@@ -38,7 +38,7 @@ gcloud alpha agent-identity auth-providers create "${MOCK_2LO_AUTH_PROVIDER}" \
   --location="${GOOGLE_CLOUD_LOCATION}" \
   --two-legged-oauth-client-id="${DEMO_CLIENT_ID}" \
   --two-legged-oauth-client-secret="${DEMO_CLIENT_SECRET}" \
-  --two-legged-oauth-token-endpoint="${MOCK_2LO_BASE_URL}/token"
+  --two-legged-oauth-token-url="${MOCK_2LO_BASE_URL}/token"
 
 echo "Verifying provider is ENABLED..."
 gcloud alpha agent-identity auth-providers list \
@@ -59,24 +59,3 @@ echo ""
 echo "  projects/${PROJECT_ID}/locations/${LOCATION}/authProviders/${AUTH_PROVIDER_NAME}"
 echo "=========================================================="
 
-# --------------------------------------------------------------------------
-# FALLBACK: older IAM Connectors API surface (auth-with-2lo, not -v2).
-# Uncomment if the authProviders commands are unavailable in your gcloud.
-# The resource name format then becomes .../connectors/NAME instead.
-# --------------------------------------------------------------------------
-# gcloud services enable iamconnectors.googleapis.com --project="${PROJECT_ID}"
-#
-# gcloud alpha agent-identity connectors create "${AUTH_PROVIDER_NAME}" \
-#   --project="${PROJECT_ID}" \
-#   --location="${LOCATION}" \
-#   --two-legged-oauth-client-id="${DEMO_CLIENT_ID}" \
-#   --two-legged-oauth-client-secret="${DEMO_CLIENT_SECRET}" \
-#   --two-legged-oauth-token-endpoint="${TOKEN_ENDPOINT}"
-#
-# gcloud alpha agent-identity connectors add-iam-policy-binding "${AUTH_PROVIDER_NAME}" \
-#   --project="${PROJECT_ID}" \
-#   --location="${LOCATION}" \
-#   --role="roles/iamconnectors.user" \
-#   --member="${AGENT_MEMBER}"
-#
-# Resource name: projects/${PROJECT_ID}/locations/${LOCATION}/connectors/${AUTH_PROVIDER_NAME}

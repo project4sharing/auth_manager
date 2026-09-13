@@ -18,6 +18,7 @@ Pattern follows the official ADK sample:
 """
 
 import httpx
+import logging
 import os
 from google.adk.agents import Agent
 from google.adk.auth.credential_manager import CredentialManager
@@ -43,10 +44,18 @@ MOCK_2LO_AUTH_PROVIDER = os.environ.get("MOCK_2LO_AUTH_PROVIDER", "NULL_MOCK_2LO
 MOCK_2LO_BASE_URL = os.environ.get("MOCK_2LO_BASE_URL", "NULL_MOCK_2LO_BASE_URL")
 FULL_MOCK_2LO_AUTH_PROVIDER = (f"projects/{GOOGLE_CLOUD_PROJECT}/locations/{GOOGLE_CLOUD_LOCATION}/authProviders/{MOCK_2LO_AUTH_PROVIDER}")
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("__file__")
 
 # Base URL of the Cloud Run mock service, e.g.:
 # https://mock-2lo-oauth-XXXX-uc.a.run.app
 ORDERS_API_BASE_URL = MOCK_2LO_BASE_URL
+
+logger.info(f"#####  GOOGLE_CLOUD_PROJECT:: {GOOGLE_CLOUD_PROJECT}")
+logger.info(f"#####  GOOGLE_CLOUD_LOCATION:: {GOOGLE_CLOUD_LOCATION}")
+logger.info(f"#####  MOCK_2LO_AUTH_PROVIDER:: {MOCK_2LO_AUTH_PROVIDER}")
+logger.info(f"#####  MOCK_2LO_BASE_URL:: {MOCK_2LO_BASE_URL}")
+logger.info(f"#####  FULL_MOCK_2LO_AUTH_PROVIDER:: {FULL_MOCK_2LO_AUTH_PROVIDER}")
 
 # -------------------------------------------------------------------------------
 # 1) Register the Agent Identity auth provider (once per process).
