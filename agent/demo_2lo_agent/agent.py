@@ -17,49 +17,55 @@ Pattern follows the official ADK sample:
   https://github.com/google/adk-python/tree/main/contributing/samples/integrations/gcp_auth
 """
 
-import os
-
 import httpx
-from google.adk.agents.llm_agent import LlmAgent
+import os
+from google.adk.agents import Agent
+from google.adk.auth.credential_manager import CredentialManager
+from google.adk.integrations.agent_identity import GcpAuthProvider
+from google.adk.integrations.agent_identity import GcpAuthProviderScheme
+from google.adk.apps import App
 from google.adk.auth.auth_credential import AuthCredential
 from google.adk.auth.auth_tool import AuthConfig
-from google.adk.auth.credential_manager import CredentialManager
-from google.adk.integrations.agent_identity import (
-    GcpAuthProvider,
-    GcpAuthProviderScheme,
-)
 from google.adk.tools.authenticated_function_tool import AuthenticatedFunctionTool
+from vertexai import agent_engines
 
-# ---------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 # Configuration (set these in agent/.env or your shell)
-# ---------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 # Full resource name of the 2LO auth provider created by
-# scripts/2_create_auth_provider.sh, e.g.:
-#   projects/my-proj/locations/us-central1/authProviders/mock-orders-2lo
-# (older Connectors API surface: .../connectors/mock-orders-2lo)
-ORDERS_2LO_AUTH_PROVIDER = os.environ["ORDERS_2LO_AUTH_PROVIDER"]
+# scripts/2_create_auth_provider.sh. Must match the pattern
+# projects/*/locations/*/authProviders/* or the credentials:retrieve
+# call fails with an "invalid request" validation error.
+
+GOOGLE_CLOUD_PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT", "NULL_GOOGLE_CLOUD_PROJECT")
+GOOGLE_CLOUD_LOCATION = os.environ.get("GOOGLE_CLOUD_LOCATION", "NULL_GOOGLE_CLOUD_LOCATION")
+MOCK_2LO_AUTH_PROVIDER = os.environ.get("MOCK_2LO_AUTH_PROVIDER", "NULL_MOCK_2LO_AUTH_PROVIDER")
+MOCK_2LO_BASE_URL = os.environ.get("MOCK_2LO_BASE_URL", "NULL_MOCK_2LO_BASE_URL")
+FULL_MOCK_2LO_AUTH_PROVIDER = (f"projects/{GOOGLE_CLOUD_PROJECT}/locations/{GOOGLE_CLOUD_LOCATION}/authProviders/{MOCK_2LO_AUTH_PROVIDER}")
+
 
 # Base URL of the Cloud Run mock service, e.g.:
-#   https://mock-2lo-oauth-XXXX-uc.a.run.app
-ORDERS_API_BASE_URL = os.environ["ORDERS_API_BASE_URL"].rstrip("/")
+# https://mock-2lo-oauth-XXXX-uc.a.run.app
+ORDERS_API_BASE_URL = MOCK_2LO_BASE_URL
 
-# ---------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 # 1) Register the Agent Identity auth provider (once per process).
-# ---------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 CredentialManager.register_auth_provider(GcpAuthProvider())
 
-# ---------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 # 2) Auth config pointing at the 2LO auth provider resource.
-# ---------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 orders_auth_config = AuthConfig(
-    auth_scheme=GcpAuthProviderScheme(name=ORDERS_2LO_AUTH_PROVIDER)
+    auth_scheme=GcpAuthProviderScheme(name=FULL_MOCK_2LO_AUTH_PROVIDER)
 )
 
 
-# ---------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 # 3) Tool functions. ADK injects the resolved credential as the
-#    `credential` argument at invocation time.
-# ---------------------------------------------------------------------------
+# `credential` argument at invocation time.
+# -------------------------------------------------------------------------------
+
 def _bearer_headers(credential: AuthCredential) -> dict:
     """Extract the access token from the injected AuthCredential."""
     token = None
@@ -77,33 +83,15 @@ def _bearer_headers(credential: AuthCredential) -> dict:
     return {"Authorization": f"Bearer {token}"}
 
 
-def list_orders(credential: AuthCredential) -> dict:
+async def list_orders(credential: AuthCredential) -> dict:
     """Lists all customer orders from the orders system.
 
     Returns:
-        A dict containing the list of orders with id, customer, total,
-        and status for each.
+    A dict containing the list of orders with id, customer, total,
+    and status for each.
     """
     resp = httpx.get(
         f"{ORDERS_API_BASE_URL}/api/orders",
-        headers=_bearer_headers(credential),
-        timeout=15.0,
-    )
-    resp.raise_for_status()
-    return resp.json()
-
-
-def get_order(order_id: str, credential: AuthCredential) -> dict:
-    """Gets details for a single order by its order id.
-
-    Args:
-        order_id: The order id, for example "ORD-1001".
-
-    Returns:
-        A dict with the order's customer, total, and status.
-    """
-    resp = httpx.get(
-        f"{ORDERS_API_BASE_URL}/api/orders/{order_id}",
         headers=_bearer_headers(credential),
         timeout=15.0,
     )
@@ -116,23 +104,28 @@ list_orders_tool = AuthenticatedFunctionTool(
     auth_config=orders_auth_config,
 )
 
-get_order_tool = AuthenticatedFunctionTool(
-    func=get_order,
-    auth_config=orders_auth_config,
-)
 
-# ---------------------------------------------------------------------------
+
+
+
 # 4) The agent.
-# ---------------------------------------------------------------------------
-root_agent = LlmAgent(
+# ------------------------------------------------------------
+agent = Agent(
     model="gemini-2.5-flash",
     name="orders_2lo_demo_agent",
     instruction=(
         "You are an assistant for the ACME orders system. "
-        "Use the list_orders tool to see all orders and the get_order tool "
-        "to look up a specific order by id. Authentication to the orders "
-        "API is handled for you automatically via 2-legged OAuth - never "
-        "ask the user for credentials."
+        "Use the list_orders tool to see all orders "
+        "Authentication to the orders "
+        "API is handled for you automatically via 2-legged OAuth "
+        "never ask the user for credentials."
     ),
-    tools=[list_orders_tool, get_order_tool],
+    tools=[list_orders_tool],
 )
+
+app = App(
+    name="mock_2lo_agent_app",
+    root_agent=agent,
+)
+
+vertex_app = agent_engines.AdkApp(app=app)
