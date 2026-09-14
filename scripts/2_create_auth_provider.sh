@@ -45,13 +45,6 @@ gcloud alpha agent-identity auth-providers list \
   --project="${GOOGLE_CLOUD_PROJECT}" \
   --location="${GOOGLE_CLOUD_LOCATION}"
 
-echo "Granting ${AGENT_MEMBER} permission to use the auth provider..."
-gcloud alpha agent-identity authProviders add-iam-policy-binding "${MOCK_2LO_AUTH_PROVIDER}" \
-  --project="${GOOGLE_CLOUD_PROJECT}" \
-  --location="${GOOGLE_CLOUD_LOCATION}" \
-  --role="roles/iamconnectors.user" \
-  --member="${AGENT_MEMBER}"
-
 echo ""
 echo "=========================================================="
 echo "Auth provider resource name (put this in agent/.env):"
