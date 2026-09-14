@@ -6,23 +6,26 @@
 set -euo pipefail
 
 # ----------------------------- EDIT THESE ---------------------------------
-export PROJECT_ID="${PROJECT_ID:-your-project-id}"
-export REGION="${REGION:-us-central1}"
-export SERVICE_NAME="${SERVICE_NAME:-mock-2lo-oauth}"
+ENV_AGENT_FILE="../agent/demo_2lo_agent/.env"
+ENV_OAUTH_SVC_FILE="../mock-oauth-service/.env"
 
-# Demo OAuth client credentials. These are what you will later store in the
-# 2LO auth provider. For a real demo, generate random values:
-export DEMO_CLIENT_ID="${DEMO_CLIENT_ID:-demo-client}"
-export DEMO_CLIENT_SECRET="${DEMO_CLIENT_SECRET:-$(openssl rand -hex 16)}"
-export TOKEN_SIGNING_KEY="${TOKEN_SIGNING_KEY:-$(openssl rand -hex 32)}"
+set -a
+source "$ENV_AGENT_FILE"
+source "$ENV_OAUTH_SVC_FILE"
+set +a
 # --------------------------------------------------------------------------
 
-gcloud services enable cloudfunctions.googleapis.com run.googleapis.com \
-  cloudbuild.googleapis.com --project="${PROJECT_ID}"
+
+gcloud agent-identity auth-providers list \
+    --project="${PROJECT_ID}" \
+    --location="${REGION}"
+
+# gcloud services enable cloudfunctions.googleapis.com run.googleapis.com \
+    cloudbuild.googleapis.com --project="${PROJECT_ID}"
 
 echo "Deploying ${SERVICE_NAME} Cloud run function in ${PROJECT_ID}/${REGION}..."
 
-gcloud functions deploy "mock-oauth-service" --project="${PROJECT_ID}" --region="${REGION}" --gen2 --runtime=python312 --source="./mock-oauth-function" --entry-point=app --trigger-http --allow-unauthenticated --set-env-vars="DEMO_CLIENT_ID=${DEMO_CLIENT_ID},DEMO_CLIENT_SECRET=${DEMO_CLIENT_SECRET},TOKEN_SIGNING_KEY=${TOKEN_SIGNING_KEY}"
+gcloud functions deploy "mock-oauth-service" --project="${PROJECT_ID}" --region="${REGION}" --gen2 --runtime=python312 --source="../mock-oauth-service" --entry-point=app --trigger-http --allow-unauthenticated --set-env-vars="DEMO_CLIENT_ID=${DEMO_CLIENT_ID},DEMO_CLIENT_SECRET=${DEMO_CLIENT_SECRET},TOKEN_SIGNING_KEY=${TOKEN_SIGNING_KEY}"
 
 FUNCTION_URL=$(gcloud functions describe "${FUNCTION_NAME}" \
   --project="${PROJECT_ID}" --region="${REGION}" --gen2 \
