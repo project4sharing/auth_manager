@@ -25,7 +25,7 @@ set +a
 # ----------------------------- EDIT THESE ---------------------------------
 # The identity that will USE the auth provider (your agent's identity, or
 # your own user account when testing locally with adk web):
-export AGENT_MEMBER="${AGENT_MEMBER:-user:you@example.com}"
+# export AGENT_MEMBER="${AGENT_MEMBER:-user:you@example.com}"
 # --------------------------------------------------------------------------
 
 echo "Enabling the Agent Identity API..."
