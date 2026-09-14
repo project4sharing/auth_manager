@@ -45,6 +45,9 @@ gcloud alpha agent-identity auth-providers list \
   --project="${GOOGLE_CLOUD_PROJECT}" \
   --location="${GOOGLE_CLOUD_LOCATION}"
 
+
+gcloud alpha agent-identity auth-providers describe ${MOCK_2LO_AUTH_PROVIDER} --project=${GOOGLE_CLOUD_PROJECT} --location=${GOOGLE_CLOUD_LOCATION}
+
 echo ""
 echo "=========================================================="
 echo "Auth provider resource name (put this in agent/.env):"

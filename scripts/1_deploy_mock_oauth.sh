@@ -16,10 +16,6 @@ set +a
 # --------------------------------------------------------------------------
 
 
-gcloud agent-identity auth-providers list \
-    --project="${PROJECT_ID}" \
-    --location="${REGION}"
-
 # gcloud services enable cloudfunctions.googleapis.com run.googleapis.com \
     cloudbuild.googleapis.com --project="${PROJECT_ID}"
 
